@@ -1,19 +1,45 @@
-import numpy
+import numpy as np
 import random
 import Mnist_Loader as ml
+
+class QuadCost():
+
+    @staticmethod
+    def fn(a,y):
+
+        return 0.5*((a-y)**2)
+    
+    @staticmethod
+    def deri(a,y,z):
+
+        return (a-y) * sigmoid_prime(z)
+    
+
+class crossEntropy():
+
+    @staticmethod
+    def fn(a,y):
+
+        return np.sum(np.nan_to_num(-y*np.log(a)-(1-y)*np.log(1-a)))
+    
+    @staticmethod
+    def deri(a,y,z):
+
+        return a-y
 
 
 class Network():
 
-    def __init__(self, layers):
+    def __init__(self, layers, cost):
         
         self.layers = layers
+        self.costf = cost
 
         ##biases setup, from layer2 to layer L
-        self.biases = [numpy.random.randn(ls,1) for ls in layers[1:]]
+        self.biases = [np.random.randn(ls,1) for ls in layers[1:]]
 
         ##weight setup from layer1~2 to layer L-1 ~ L
-        self.weight = [numpy.random.randn(layers[x+1],layers[x]) for x in range(len(layers)-1)]
+        self.weight = [np.random.randn(layers[x+1],layers[x]) for x in range(len(layers)-1)]
 
     def print_arg(self):
         print(self.biases)
@@ -45,8 +71,8 @@ class Network():
         mb_size = len(mb)
 
         #initialize gradient
-        partial_b = [numpy.zeros(b.shape) for b in self.biases]
-        partial_w = [numpy.zeros(w.shape) for w in self.weight]
+        partial_b = [np.zeros(b.shape) for b in self.biases]
+        partial_w = [np.zeros(w.shape) for w in self.weight]
 
         #sum up gradients from every training data
         for x,y in mb:
@@ -71,8 +97,8 @@ class Network():
         n_layer = len(self.layers)
         
         #initialize gradient
-        partial_b = [numpy.zeros(b.shape) for b in self.biases]
-        partial_w = [numpy.zeros(w.shape) for w in self.weight]
+        partial_b = [np.zeros(b.shape) for b in self.biases]
+        partial_w = [np.zeros(w.shape) for w in self.weight]
 
 
         #cache for later caculation
@@ -84,22 +110,22 @@ class Network():
         #FP
         for w,b in zip(self.weight, self.biases):
 
-            z = numpy.dot(w,activation)+b
+            z = np.dot(w,activation)+b
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
 
         #BP
-        error =  (activations[-1]-y)*sigmoid_prime(zs[-1]) #formula 1
+        error =  self.costf.deri(activations[-1], y, zs[-1]) #formula 1
         partial_b[-1] = error #formula 3
-        partial_w[-1] = numpy.dot(error, activations[-2].transpose()) #formula 4
+        partial_w[-1] = np.dot(error, activations[-2].transpose()) #formula 4
 
         #from -2 to -n_layer+1
         #formula 2,3,4
         for i in range(2,n_layer):
-            error = numpy.dot(self.weight[-i+1].transpose(), error) * sigmoid_prime(zs[-i])
+            error = np.dot(self.weight[-i+1].transpose(), error) * sigmoid_prime(zs[-i])
             partial_b[-i] = error
-            partial_w[-i] = numpy.dot(error, activations[-i-1].transpose())
+            partial_w[-i] = np.dot(error, activations[-i-1].transpose())
 
         return (partial_b, partial_w)
 
@@ -108,7 +134,7 @@ class Network():
         a = input
         for w,b in zip(self.weight, self.biases):
 
-            a = sigmoid(numpy.dot(w,a) + b)
+            a = sigmoid(np.dot(w,a) + b)
 
         return a
     
@@ -118,23 +144,23 @@ class Network():
 
         for x,y in test_data:
 
-            if (numpy.argmax(self.feedForward(x)) == y):
+            if (np.argmax(self.feedForward(x)) == y):
                 count+=1 
 
         return count
     
 #functions
 def sigmoid(z):
-    return 1.0/(1.0+numpy.exp(-z))
+    return 1.0/(1.0+np.exp(-z))
 
 def sigmoid_prime(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 
-network = Network([784,30,10])
+network = Network([784,30,10], cost=crossEntropy)
 #network.print_arg()
 
 training_data, validation_data, test_data = ml.load_data_wrapper()
-network.train(training_data, 30, 10.0, 10, test_data=test_data)
+network.train(training_data, 30, 0.5, 10, test_data=test_data)
 
 
