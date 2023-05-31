@@ -34,20 +34,24 @@ class Network():
         
         self.layers = layers
         self.costf = cost
+        self.t_data_size = 0
 
-        ##biases setup, from layer2 to layer L
+        ## biases setup, from layer2 to layer L
         self.biases = [np.random.randn(ls,1) for ls in layers[1:]]
 
-        ##weight setup from layer1~2 to layer L-1 ~ L
-        self.weight = [np.random.randn(layers[x+1],layers[x]) for x in range(len(layers)-1)]
+        ## weight setup from layer1~2 to layer L-1 ~ L
+        ## self.weight = [np.random.randn(layers[x+1],layers[x]) for x in range(len(layers)-1)] : The old way to initialize weights
+        self.weight = [np.random.randn(layers[x+1],layers[x])/np.sqrt(layers[x]) for x in range(len(layers)-1)]
 
     def print_arg(self):
         print(self.biases)
         print(self.weight)
 
-    def train(self, training_data, epochs, eta, mb_size, test_data = None):
+    def train(self, training_data, epochs, eta, mb_size, lmbda, test_data = None):
 
         #mb_size means mini_batches_size
+
+        self.t_data_size = len(training_data)
 
         for i in range(epochs):
 
@@ -57,7 +61,7 @@ class Network():
 
             #SGD
             for mb in mbs:
-                self.SGD(mb,eta)
+                self.SGD(mb,eta,lmbda)
 
             #Evaluate if test_data exists, and print out the accuarcy of the current model
             if(test_data):
@@ -66,7 +70,7 @@ class Network():
             else:
                 print(f'epoch {i+1} training finished')
 
-    def SGD(self, mb, eta):
+    def SGD(self, mb, eta, lmbda):
         
         mb_size = len(mb)
 
@@ -84,6 +88,7 @@ class Network():
         #update weight and biases
         for i in range(len(self.layers)-1):
             self.biases[i] -= eta/mb_size*partial_b[i]
+            self.weight[i] *= (1 - eta*lmbda/self.t_data_size)
             self.weight[i] -= eta/mb_size*partial_w[i]
 
         return
@@ -157,10 +162,16 @@ def sigmoid_prime(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 
-network = Network([784,30,10], cost=crossEntropy)
+network = Network([784,30,30,10], cost=crossEntropy)
 #network.print_arg()
 
 training_data, validation_data, test_data = ml.load_data_wrapper()
-network.train(training_data, 30, 0.5, 10, test_data=test_data)
+network.train(
+    training_data, 
+    epochs=30, 
+    eta=0.1, 
+    mb_size=10, 
+    lmbda=5.0, 
+    test_data=test_data)
 
 
